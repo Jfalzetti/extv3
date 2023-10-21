@@ -1,22 +1,33 @@
-﻿console.log("content.js loaded");
+console.log("content.js loaded");
 
 let fullscreenClosed = false;
 let reviewBoxVisible = false;
 let fullscreenClicked = false;
 let isFullscreenActive = false;
 let videoFullscreenClicked = false;
-let currentThumbnailIndex = 0;
-let allshorts = [];
 
 
 const url = window.location.href;
 const match = url.match(/channel\/(UC[^?\/]+)/);
 
-let channelId;
-if (match && match[1]) {
-    channelId = match[1];
-    console.log("Channel ID:", channelId);
+    let channelId;
+    let thumbnailsData = [];
+    let shortsData = [];
+    if (match && match[1]) {
+        channelId = match[1];
+        console.log("Channel ID:", channelId);
 }
+
+    Promise.all([
+        fetchThumbnailsByYouTubeID(channelId),
+        fetchShortsByYouTubeID(channelId)
+    ]).then(([thumbnails, shorts]) => {
+        thumbnailsData = thumbnails;
+        shortsData = shorts;
+        addReviewButton();
+    }).catch(error => {
+        console.error("Error fetching data:", error);
+    });
 
 function fetchDiscordChannelsByYouTubeID(youtubeChannelID) {
     return fetch(`https://adloxs.marvelcrm.com/wp-content/plugins/adloxs/files/test.php?action=fetchDiscordChannels&youtube_channel_id=${youtubeChannelID}`)
@@ -80,48 +91,36 @@ function addReviewButton() {
                 reviewBtn.style.boxShadow = 'none';
                 reviewBtn.style.transform = 'none';
             } else {
-                // Fetch both thumbnails and shorts data
-                Promise.all([
-                    fetchThumbnailsByYouTubeID(channelId),
-                    fetchShortsByYouTubeID(channelId)  // Assuming you have a similar function for fetching shorts
-                ]).then(([thumbnails, shorts]) => {
-                    const reviewBox = createReviewBox(thumbnails, shorts);
-                    document.body.appendChild(reviewBox);
-                    reviewBoxVisible = true;
-                    reviewBtn.style.boxShadow = 'inset 0 2px 4px rgba(0, 0, 0, 0.2)';
-                    reviewBtn.style.transform = 'scaleY(0.98)';
-                }).catch(error => {
-                    console.error("Error fetching data:", error);
-                });
+                // Use the stored thumbnailsData and shortsData instead of fetching again
+                const reviewBox = createReviewBox(thumbnailsData, shortsData);
+                document.body.appendChild(reviewBox);
+                reviewBoxVisible = true;
             }
+               
         });
 
         existingButton.insertAdjacentElement('afterend', reviewBtn);
+        document.title = "Adloxs";
+
     }
 }
-
-
 
 function createReviewBox(thumbnails, shorts) {
     const reviewBox = document.createElement('div');
     reviewBox.className = 'reviewBoxClass';
     reviewBox.id = 'adloxsReviewBox';
-    reviewBox.style.width = '400px';
+    reviewBox.style.width = '25vw';  // Use viewport width for adaptiveness
     reviewBox.style.border = '1px solid #e0e0e0';
-    reviewBox.style.padding = '10px';
+    reviewBox.style.padding = '1rem';  // Use rem for padding
     reviewBox.style.position = 'fixed';
-    reviewBox.style.top = '72px';
-    reviewBox.style.left = '20.5%';
+    reviewBox.style.top = '7rem';  // Use rem for top positioning
+    reviewBox.style.left = '20.5%';  // This might need to be adjusted dynamically if the sidebar's position changes
     reviewBox.style.backgroundColor = '#fff';
     reviewBox.style.zIndex = '1000';
     reviewBox.style.overflowY = 'auto';
     reviewBox.style.borderRadius = '5px';
     reviewBox.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
-
-    // Hide scrollbar for Firefox
     reviewBox.style.scrollbarWidth = 'none';
-
-    // For Chrome, Safari, and newer versions of Edge, you'll need to append a style element
     const styleElement = document.createElement('style');
     styleElement.textContent = `
         #adloxsReviewBox::-webkit-scrollbar {
@@ -141,14 +140,17 @@ function createReviewBox(thumbnails, shorts) {
     if (totalHeight > maxHeight) {
         reviewBox.style.overflowY = 'auto';  // If the content exceeds the max height, make it scrollable
     }
-
+    const sidebar = document.querySelector('.style-scope ytcp-navigation-drawer');  // Replace '.sidebar-selector' with the actual selector for the sidebar
+    if (sidebar) {
+        const sidebarRect = sidebar.getBoundingClientRect();
+        reviewBox.style.left = `${sidebarRect.right + 5}px`;  // Position the reviewBox 10px to the right of the sidebar
+    }
     // Create tabs container
     const tabsContainer = document.createElement('div');
     tabsContainer.className = 'tabsContainer';
     tabsContainer.style.marginBottom = '10px';  // Adjust the value as needed
     tabsContainer.style.display = 'flex';
     tabsContainer.style.justifyContent = 'space-between';
-    //tabsContainer.style.borderBottom = '1px solid #e0e0e0';
 
     const tabButtonStyle = `
         flex: 1;
@@ -165,15 +167,15 @@ function createReviewBox(thumbnails, shorts) {
 
     function updateTabAppearance() {
         if (thumbnailsTab.classList.contains('active')) {
-            thumbnailsTab.style.fontSize = '15px';
-            thumbnailsTab.style.boxShadow = 'inset 0 1px 2px rgba(0, 0, 0, 0.2)';
+            thumbnailsTab.style.fontSize = '14.5px';
+            thumbnailsTab.style.boxShadow = 'inset 0 0.2px 1px rgba(0, 0, 0, 0.2)';
             thumbnailsTab.style.transform = 'scaleY(0.98)';
             shortsTab.style.fontSize = '14px';
             shortsTab.style.boxShadow = 'none';
             shortsTab.style.transform = 'none';
         } else {
-            shortsTab.style.fontSize = '15px';
-            shortsTab.style.boxShadow = 'inset 0 1px 2px rgba(0, 0, 0, 0.2)';
+            shortsTab.style.fontSize = '14.5px';
+            shortsTab.style.boxShadow = 'inset 0 0.2px 1px rgba(0, 0, 0, 0.2)';
             shortsTab.style.transform = 'scaleY(0.98)';
             thumbnailsTab.style.fontSize = '14px';
             thumbnailsTab.style.boxShadow = 'none';
@@ -245,7 +247,7 @@ function createReviewBox(thumbnails, shorts) {
         img.style.display = 'block';
         img.width = 120;
         img.style.marginRight = '15px';
-        img.style.borderRadius = '5px';
+        img.style.borderRadius = '2px';
         img.style.cursor = 'pointer';
         img.className = 'thumbnail-image';
         img.setAttribute('data-src', thumbnail.thumbnail_url);
@@ -282,7 +284,7 @@ function createReviewBox(thumbnails, shorts) {
         titleLink.target = '_blank'; // Open the link in a new tab
         titleLink.style.flexGrow = '1';
         titleLink.style.fontFamily = "YouTube Sans, sans-serif";
-        titleLink.style.fontSize = '15px';
+        titleLink.style.fontSize = '14px';
         titleLink.style.color = '#007BFF'; // Give it a blue color to indicate it's a clickable link
         titleLink.style.textDecoration = 'none'; // Remove the underline
         titleLink.setAttribute('data-id', short.id);
@@ -311,6 +313,7 @@ function createReviewBox(thumbnails, shorts) {
         return reviewBox;
     }
 
+let currentThumbnailIndex = 0;
 function cycleToNextThumbnail(img, thumbnails) {
     if (thumbnails[currentThumbnailIndex + 1]) {
         currentThumbnailIndex++;
@@ -346,8 +349,8 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     img.src = thumbnails[index].thumbnail_url;
     img.style.maxWidth = '90%';
     img.style.maxHeight = '90%';
-    img.style.borderRadius = '20px';
-    img.style.marginRight = '20px';
+    img.style.borderRadius = '14px';
+    img.style.marginRight = '10px';
 
         const approveBtn = document.createElement('button');
     approveBtn.innerText = '✔';
@@ -358,6 +361,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     approveBtn.style.padding = '5px 10px';  // Increase the padding to make the button larger
     approveBtn.style.borderRadius = '4px';  // Round the button corners
     approveBtn.style.fontSize = '20px';  // Increase the font size for visibility
+    approveBtn.style.cursor = 'pointer';
     approveBtn.onclick = function (event) {
         console.log("Approve button clicked");
         event.stopPropagation();
@@ -369,7 +373,8 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
  
         // Add the 'approved' class to the container of the associated thumbnail
         associatedThumbnailElement.closest('div').classList.add('approved');
-    
+        associatedThumbnailElement.closest('div').style.display = 'none';
+
         // Update the thumbnail status in the database
         const thumbnailId = associatedThumbnailElement.getAttribute('data-id'); // Assuming you have a data-id attribute on the thumbnail element
         updateThumbnailStatus(thumbnailId, 'approved');
@@ -377,7 +382,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
         const newImageUrl = cycleToNextThumbnail(img, thumbnails);
         if (newImageUrl) {
         imageUrl = newImageUrl;
-        cycleToNextThumbnail(thumbnails);
+
     }
 };
         
@@ -389,6 +394,7 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
     reviseBtn.style.padding = '5px 10px';  // Increase the padding to make the button larger
     reviseBtn.style.borderRadius = '4px';  // Round the button corners
     reviseBtn.style.fontSize = '20px';  // Increase the font size for visibility
+    reviseBtn.style.cursor = 'pointer';
     reviseBtn.onclick = function (event) {
         console.log("Revise button clicked");
     event.stopPropagation();
@@ -399,7 +405,8 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
           const associatedThumbnailElement = document.querySelector(`[data-src="${imageUrl}"]`);
 
           associatedThumbnailElement.closest('div').classList.add('revised');
-        
+          associatedThumbnailElement.closest('div').style.display = 'none';
+
           const thumbnailId = associatedThumbnailElement.getAttribute('data-id'); // Assuming you have a data-id attribute on the thumbnail element
           updateThumbnailStatus(thumbnailId, 'revised', comment);
  
@@ -407,7 +414,6 @@ function viewImageFullscreen(imageUrl, index, thumbnails) {
           if (newImageUrl) {
             imageUrl = newImageUrl;
 
-            cycleToNextThumbnail(thumbnails);
         }
     }
 };
@@ -490,8 +496,7 @@ function viewShortFullscreen(driveUrl, index, shorts) {
     fullscreenDiv.id = 'fullscreenDiv';
 
     const iframe = document.createElement('iframe');
-    //iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
-    iframe.src = `https://www.youtube.com/embed/t-YdLxqi49Q`;
+    iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
     iframe.style.width = '90%';  // Adjust as needed
     iframe.style.height = '90%'; // Adjust as needed
     
@@ -508,6 +513,7 @@ function viewShortFullscreen(driveUrl, index, shorts) {
     approveBtn.style.padding = '5px 10px';
     approveBtn.style.borderRadius = '4px';
     approveBtn.style.fontSize = '20px';
+    approveBtn.style.cursor = 'pointer';
     approveBtn.short = shorts[index];
     approveBtn.onclick = function(event) {
         event.stopPropagation();
@@ -515,6 +521,10 @@ function viewShortFullscreen(driveUrl, index, shorts) {
         console.log(this.short);
         console.log(driveUrl + ' approved');
         updateShortStatus(short.id, 'approved'); // Call the function to update the short status
+        // Find the associated short element in the list
+        const associatedShortElement = document.querySelector(`[data-id="${short.id}"]`);
+        // Hide the associated short
+        associatedShortElement.closest('div').style.display = 'none';
         const newDriveUrl = cycleToNextShort(iframe, allshorts, approveBtn);
         if (newDriveUrl) {
             driveUrl = newDriveUrl;
@@ -529,6 +539,7 @@ function viewShortFullscreen(driveUrl, index, shorts) {
     reviseBtn.style.padding = '5px 10px';
     reviseBtn.style.borderRadius = '4px';
     reviseBtn.style.fontSize = '20px';
+    reviseBtn.style.cursor = 'pointer';
     reviseBtn.short = shorts[index];
     reviseBtn.onclick = function(event) {
         event.stopPropagation();
@@ -538,6 +549,11 @@ function viewShortFullscreen(driveUrl, index, shorts) {
             console.log(this.short);
             console.log('Revision for ' + driveUrl + ':', comment);
             updateShortStatus(short.id, 'revised', comment); // Call the function to update the short status with a comment
+            // Find the associated short element in the list
+            const associatedShortElement = document.querySelector(`[data-id="${short.id}"]`);
+            // Hide the associated short
+            associatedShortElement.closest('div').style.display = 'none';
+
             const newDriveUrl = cycleToNextShort(iframe, allshorts, reviseBtn);
             if (newDriveUrl) {
                 driveUrl = newDriveUrl;
@@ -563,6 +579,221 @@ function viewShortFullscreen(driveUrl, index, shorts) {
     });
 }
 
+function createInputElements() {
+    const container = document.createElement('div');
+    container.className = 'input-container2';
+
+    const textBox = document.createElement('input');
+    textBox.type = 'text';
+    textBox.placeholder = 'Notes/Links...';
+
+    const checkBoxLabel = document.createElement('label');
+    const checkBox = document.createElement('input');
+    checkBox.type = 'checkbox';
+    checkBoxLabel.appendChild(checkBox);
+    checkBoxLabel.appendChild(document.createTextNode(' A/B '));
+
+    container.appendChild(checkBoxLabel);
+    container.appendChild(textBox);
+
+    return container;
+}
+
+// Callback function for the MutationObserver
+function handleMutations(mutationsList) {
+    for (let mutation of mutationsList) {
+        if (mutation.type === 'childList') {
+            const triggerElement = document.querySelector('h1.style-scope.ytcp-uploads-review');
+            const targetElement = document.querySelector('.right-button-area.style-scope.ytcp-uploads-dialog');
+            const existingToggleButton = document.querySelector('.toggle-button');
+
+            if (triggerElement && targetElement && !existingToggleButton && getComputedStyle(triggerElement).display !== 'none') {
+                console.log('Trigger element is visible!');
+
+                // Inject the toggle button
+                const toggleButton = document.createElement('button');
+                toggleButton.className = 'toggle-button';
+                toggleButton.addEventListener('click', handleToggleButton);
+
+                const toggleCircle = document.createElement('div');
+                toggleCircle.className = 'toggle-circle';
+                toggleButton.appendChild(toggleCircle);
+
+                targetElement.insertBefore(toggleButton, targetElement.firstChild);
+            }
+        }
+    }
+}
+
+let date, hour, title, videoLink;
+function attachDoneButtonListener() {
+    // Attach the event listener to the body or another persistent parent element
+    document.body.addEventListener('click', function (event) {
+        // Check if the clicked element is the "Done" button
+        if (event.target.closest('#done-button > div')) {
+            // Check if the toggle button is active
+            const toggleButton = document.querySelector('.toggle-button');
+            if (toggleButton && toggleButton.classList.contains('active')) {
+                gatherData()
+            }
+        }
+    });
+}
+// Call the function to start the process
+attachDoneButtonListener();
+
+function handleToggleButton() {
+    // Toggle the 'active' class for the button
+    this.classList.toggle('active');
+
+    const inputElements = document.querySelector('.input-container2');
+    if (this.classList.contains('active')) {
+        // If the toggle button is active, show the text box and checkbox
+        const elements = createInputElements();
+        this.parentNode.insertBefore(elements, this);
+    } else if (inputElements) {
+        // If the toggle button is inactive, remove the text box and checkbox
+        inputElements.remove();
+    }
+}
+
+function gatherData() {
+    // Check if the video is scheduled or not
+    const scheduleLabel = document.querySelector('#done-button > div').textContent.trim();
+
+    if (scheduleLabel === "Schedule") {
+        // Gather date and hour if the video is scheduled
+        date = document.querySelector('#datepicker-trigger > ytcp-dropdown-trigger > div > div.left-container.style-scope.ytcp-dropdown-trigger > span').textContent;
+        hour = document.querySelector('input.style-scope.tp-yt-paper-input').value;
+    } else {
+        // Set as "no date" if the video is not scheduled
+        date = "no date";
+        hour = "no time";
+    }
+
+    title = document.querySelector('div#title.style-scope.ytcp-uploads-dialog').textContent;
+    videoLink = document.querySelector('a.style-scope.ytcp-video-info').href;
+
+    console.log('channelId:', channelId);
+    console.log('Date:', date);
+    console.log('Hour:', hour);
+    console.log('Title:', title);
+    console.log('Video Link:', videoLink);
+
+    sendDataToServer(channelId, date, hour, title, videoLink);
+}
+
+function sendDataToServer() {
+    console.log('Sending Date:', date);
+    console.log('Sending Hour:', hour);
+    console.log('Sending title:', title);
+    console.log('Sending link:', videoLink);
+
+    const url = "https://adloxs.marvelcrm.com/wp-content/plugins/adloxs/files/test.php?action=newuploadrequest";
+
+    const inputTextValue = document.querySelector('.input-container2 input[type="text"]').value;
+    const isABTestingChecked = document.querySelector('.input-container2 input[type="checkbox"]').checked;
+
+    const volume = isABTestingChecked ? 2 : 1;
+
+    const requestBody = `channel_id=${channelId}&due_date=${date}&due_time=${hour}&video_title=${title}&video_link=${videoLink}&notes=${inputTextValue}&volume=${volume}`;
+
+    // Log the request body
+    console.log("Sending data:", requestBody);
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: requestBody
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function showMenu() {
+    // Logic to show the menu when the circle is clicked
+}
+
+// Add styles for the toggle button and circle
+const style = document.createElement('style');
+style.textContent = `
+    .toggle-container {
+        display: flex;
+        align-items: center;
+    }
+
+    .toggle-button {
+        width: 60px;
+        height: 30px;
+        border-radius: 15px;
+        background-color: #ccc;
+        position: relative;
+        cursor: pointer;
+        margin-right: 10px;
+        outline: none;
+        border: none;
+    }
+
+       .toggle-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background-color: #fff; /* This will be the base background color */
+        background-image: url('https://i.imgur.com/h95Pd0v.png'), radial-gradient(circle, #fff, #fff); 
+        /* The radial-gradient creates a circle of the same color as the background-color. 
+           This ensures that the image is drawn on top of a solid color. */
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 24px 24px, 100% 100%; /* Size of the icon and the gradient */
+        position: absolute;
+        top: 1px;
+        left: 1px;
+        transition: left 0.3s;
+    }
+
+
+    .toggle-button.active {
+        background-color: #065fd4; /* Background color when the toggle button is active */
+    }
+
+    .toggle-button.active .toggle-circle {
+        left: 31px;
+    }
+    .input-container2 {
+        display: flex;
+        flex-direction: row; 
+        gap: 10px; 
+        align-items: center; 
+    }
+
+    .input-container2 > input[type="text"] {
+        margin-right: 10px;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .input-container2 > label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+`;
+
+document.head.appendChild(style);
+
+// Initialize the MutationObserver
+const observer = new MutationObserver(handleMutations);
+
+// Start observing changes in the document's body
+observer.observe(document.body, { childList: true, subtree: true });
 
 function updateThumbnailStatus(thumbnailId, status, revisionComment = null) {
     const formData = new URLSearchParams();
@@ -581,23 +812,18 @@ function updateThumbnailStatus(thumbnailId, status, revisionComment = null) {
     .then(data => {
         console.log(data.message);
 
-        // Retrieve associated thumbnail attributes
         const associatedThumbnailElement = document.querySelector(`[data-id="${thumbnailId}"]`);
         if (!associatedThumbnailElement) {
             console.error("Thumbnail element not found for thumbnailId:", thumbnailId);
             return;
         }
-
-       //const channelId = associatedThumbnailElement.getAttribute('discord_channel_id');
+      
         const threadId = associatedThumbnailElement.getAttribute('discord_thread_id');
         const messageId = associatedThumbnailElement.getAttribute('discord_message_id');
-        //const imageUrl = associatedThumbnailElement.getAttribute('data-src');
 
-        // Construct JSON data
         const requestData = {            
             threadId:  String(threadId),
             messageId: String(messageId),
-           // imageUrl:  imageUrl,
             status:    status
         };
 
@@ -605,7 +831,7 @@ function updateThumbnailStatus(thumbnailId, status, revisionComment = null) {
             requestData.revisionComment = revisionComment;
         }
         console.log("Sending data:", requestData);
-        // Send JSON request to Discord update PHP script
+
         return fetch('https://adloxs.marvelcrm.com/wp-content/plugins/adloxs/files/DiscordUpdatecurl.php', {
             method: 'POST',
             headers: {
@@ -647,7 +873,7 @@ function updateShortStatus(shortId, status, revisionComment = null) {
                 return;
             }
            
-          //  const channelId = associatedShortElement.getAttribute('discord_channel_id');
+ 
             const threadId = associatedShortElement.getAttribute('discord_thread_id');
             const messageId = associatedShortElement.getAttribute('discord_message_id');
           //  const driveUrl = associatedShortElement.getAttribute('data-shorts-url');
@@ -656,7 +882,6 @@ function updateShortStatus(shortId, status, revisionComment = null) {
             const requestData = {
                 threadId: String(threadId),
                 messageId: String(messageId),
-              //  driveUrl: driveUrl,
                 status: status
             };
 
